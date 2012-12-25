@@ -32,10 +32,16 @@
 
       var sun = {pos:new b2Vec2(15, 15),mass:1000};
       //var bodies = new Array();
-      var ship = {mainweapon:{cooldown:300,lastfired:0,bulletsize:0.2,bulletvelocity:10}};
+      var defaultmainweapon = {cooldown:300,lastfired:0,bulletsize:0.2,bulletvelocity:10};
+      
+      var ships = [{mainweapon:defaultmainweapon,entitytype:"SHIP"},{mainweapon:defaultmainweapon,entitytype:"SHIP"}]
        
       var controls = {};
-      var keyBindings = {87:"FWD",65:"LEFT",68:"RIGHT",32:"FIRE"};
+      var keyBindings = {
+        // [SHIPNR, CONTROL]
+        87:[0,"FWD"],65:[0,"LEFT"],68:[0,"RIGHT"],32:[0,"FIRE"],
+        38:[1,"FWD"],37:[1,"LEFT"],39:[1,"RIGHT"],13:[1,"FIRE"]
+        };
       
       var listener = new b2Listener;
       
@@ -43,33 +49,52 @@
       listener.BeginContact = function(contact, oldManifold) {
             sunCollision = function(sun,body) {
                 // Non-ship objects burn up in the atmosphere
-                if (body != ship.body) deleteList.push(body);
+                var et = body.entity && body.entity.entitytype;
+                if (et != "SHIP") deleteList.push(body);
 
             }
 
             shipCollision = function(ship,body) {
                 
-                // Ship collisions hurt the ship, but only once in a while                                
-                var timeout = 1000;
-                t = new Date().getTime();
-                if (body.lastContacts[ship]) {
-                    if (t - body.lastContacts[ship] < timeout) {
-                        return;
+                function doCollision(ship,body) {
+                    // Perform the actual collision
+                    // Ship collisions hurt the ship, but only once in a while                                
+                    var timeout = 1000;
+                    var t = new Date().getTime();
+                    if (body.lastContacts && body.lastContacts[ship]) {
+                        if (t - body.lastContacts[ship] < timeout) {
+                            return;
+                        }
                     }
+                    console.debug("OUCH!");
+                
+                    if (body.lastContacts === undefined) {
+                        body.lastContacts = {};
+                    }
+                    body.lastContacts[ship] = t;                                
                 }
-                body.lastContacts[ship] = t;                                
                 // hurt!
-                console.debug("OUCH!");
-
+                doCollision(ship,body);
+                
+                // If ship-to-ship, perform reverse collision too.
+                var et = body.entity && body.entity.entitytype;
+                if (et == "SHIP") {
+                    doCollision(body.entity, ship.body);
+                }
+                
+                
             }
-
             
             
             var bodyA = contact.GetFixtureA().GetBody();
             var bodyB = contact.GetFixtureB().GetBody();
+            
+            var etA = bodyA.entity && bodyA.entity.entitytype;            
+            var etB = bodyB.entity && bodyB.entity.entitytype;           
 
-            if (bodyA == ship.body) { shipCollision(ship,bodyB);return; }
-            if (bodyB == ship.body) { shipCollision(ship,bodyA);return; } 
+            // ToDo, ship-ship collisions
+            if (etA == "SHIP") { shipCollision(bodyA.entity,bodyB);return; }
+            if (etB == "SHIP") { shipCollision(bodyB.entity,bodyA);return; } 
 
             if (bodyA == sun.body) { sunCollision(sun,bodyB);return; }
             if (bodyB == sun.body) { sunCollision(sun,bodyA);return; }
@@ -115,7 +140,7 @@
          sun.body.lastContacts = {};
          
          
-         // create the ship
+         // create the ships
          bodyDef.type = b2Body.b2_dynamicBody;
          fixDef.shape = new b2PolygonShape;
          fixDef.shape.SetAsBox(
@@ -124,8 +149,12 @@
                );
          bodyDef.position.x = 2;
          bodyDef.position.y = 2;
-         ship.body = world.CreateBody(bodyDef);
-         ship.body.CreateFixture(fixDef);         
+         for (var i=0;i<2;i++) {
+            bodyDef.position.x += 3*i;
+            ships[i].body = world.CreateBody(bodyDef);
+            ships[i].body.CreateFixture(fixDef);
+            ships[i].body.entity = ships[i]; 
+        }
          
          //create some objects
          bodyDef.type = b2Body.b2_dynamicBody;
@@ -177,25 +206,25 @@
             var control = keyBindings[keyCode];
             if (control) {
                 //console.log(control);
-                if (control == "FWD") {
+                var shipnr = control[0];
+                if (control[1] == "FWD") {
                     // Forward!
-                    ship.body.ApplyForce(ship.body.GetWorldVector(new b2Vec2(0,-10)),ship.body.GetWorldCenter());
+                    ships[shipnr].body.ApplyForce(ships[shipnr].body.GetWorldVector(new b2Vec2(0,-10)),ships[shipnr].body.GetWorldCenter());
                 }
-                if (control == "LEFT") {
+                if (control[1] == "LEFT") {
                     //ship.body.SetAngle(ship.body.GetAngle()-0.05);
-                    ship.body.ApplyTorque(-10);
+                    ships[shipnr].body.ApplyTorque(-10);
                 }
-                if (control == "RIGHT") {
+                if (control[1] == "RIGHT") {
                     //ship.body.SetAngle(ship.body.GetAngle()+0.05);
-                    ship.body.ApplyTorque(10);
+                    ships[shipnr].body.ApplyTorque(10);
                 }
-                if (control == "FIRE") {
+                if (control[1] == "FIRE") {
                     t = new Date().getTime();
-                    if ((t - ship.mainweapon.lastfired) > ship.mainweapon.cooldown) {
+                    if ((t - ships[shipnr].mainweapon.lastfired) > ships[shipnr].mainweapon.cooldown) {
                         console.debug("FIRE!!");
-                        ship.mainweapon.lastfired = t;
-                        
-                        // Create a bullet
+                        ships[shipnr].mainweapon.lastfired = t;
+                        // Create a bulletwaaas
                         var fixDef = new b2FixtureDef;
                         fixDef.density = 1.0;
                         fixDef.friction = 0.5;
@@ -203,11 +232,11 @@
 
                         var bodyDef = new b2BodyDef;       
                         bodyDef.type = b2Body.b2_dynamicBody;
-                        fixDef.shape = new b2CircleShape(ship.mainweapon.bulletsize);            
-                        bodyDef.position.SetV(ship.body.GetWorldPoint(new b2Vec2(0,-2)));                        
+                        fixDef.shape = new b2CircleShape(ships[shipnr].mainweapon.bulletsize);            
+                        bodyDef.position.SetV(ships[shipnr].body.GetWorldPoint(new b2Vec2(0,-2)));                        
                         var body = world.CreateBody(bodyDef);
                         body.CreateFixture(fixDef);         
-                        body.SetLinearVelocity(ship.body.GetWorldVector(new b2Vec2(0,-20)));
+                        body.SetLinearVelocity(ships[shipnr].body.GetWorldVector(new b2Vec2(0,-20)));
                         body.lastContacts = {};
 
                         
@@ -217,7 +246,8 @@
         }
         
         // Dampen the angular velocity
-        ship.body.SetAngularVelocity(ship.body.GetAngularVelocity()*0.95);
+        ships[0].body.SetAngularVelocity(ships[0].body.GetAngularVelocity()*0.95);
+        ships[1].body.SetAngularVelocity(ships[1].body.GetAngularVelocity()*0.95);
 
         // Do gravity
         for (var b = world.GetBodyList(); b; b = b.GetNext())
