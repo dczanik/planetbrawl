@@ -11,89 +11,106 @@
    <script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
    <script type="text/javascript">
         /*jslint bitwise: true, newcap: true, plusplus: true, vars: true, white: true, browser: true, devel: true */
-        "use strict";
-        var world;
+    "use strict";
+    var world;
       
       
-       var   b2Vec2 = Box2D.Common.Math.b2Vec2
-         	,	b2BodyDef = Box2D.Dynamics.b2BodyDef
-         	,	b2Body = Box2D.Dynamics.b2Body
-         	,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
-         	,	b2Fixture = Box2D.Dynamics.b2Fixture
-         	,	b2World = Box2D.Dynamics.b2World
-         	,	b2MassData = Box2D.Collision.Shapes.b2MassData
-         	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
-         	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
-         	,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw   
-            ,   b2Listener = Box2D.Dynamics.b2ContactListener
-            ;
+    var   b2Vec2 = Box2D.Common.Math.b2Vec2
+        ,	b2BodyDef = Box2D.Dynamics.b2BodyDef
+        ,	b2Body = Box2D.Dynamics.b2Body
+        ,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+        ,	b2Fixture = Box2D.Dynamics.b2Fixture
+        ,	b2World = Box2D.Dynamics.b2World
+        ,	b2MassData = Box2D.Collision.Shapes.b2MassData
+        ,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+        ,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
+        ,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw   
+        ,   b2Listener = Box2D.Dynamics.b2ContactListener
+        ;
 
-      var sun = {pos:new b2Vec2(15, 15),mass:1000};
-      //var bodies = new Array();
-      var defaultmainweapon = {cooldown:300,lastfired:0,bulletsize:0.2,bulletvelocity:10};
-      
-      var ships = [{mainweapon:defaultmainweapon,entitytype:"SHIP"},{mainweapon:defaultmainweapon,entitytype:"SHIP"}];
+    function Entity() {
+        this.entitytype = null;
+        this.body = null;
+        return this;
+    }
+
+    function Ship(mainweapon) {  
+        this.entitytype = "SHIP";
+        this.mainweapon = mainweapon;
+    }
+    Ship.prototype = new Entity();
+
+    function Planet(pos,mass) {  
+        this.entitytype = "PLANET";
+        this.mass = mass;
+        this.pos = pos;
+    }
+    Planet.prototype = new Entity();
+
+    var sun = new Planet(new b2Vec2(15, 15),1000);
+    var defaultmainweapon = {cooldown:300,lastfired:0,bulletsize:0.2,bulletvelocity:10};      
+    var ships = [new Ship(defaultmainweapon),new Ship(defaultmainweapon)];
        
-      var controls = {};
-      var keyBindings = {
+    var controls = {};
+    var keyBindings = {
         // [SHIPNR, CONTROL]
         87:[0,"FWD"],65:[0,"LEFT"],68:[0,"RIGHT"],32:[0,"FIRE"],
         38:[1,"FWD"],37:[1,"LEFT"],39:[1,"RIGHT"],13:[1,"FIRE"]
-        };
+    };
       
-      var listener = new b2Listener();
-      
-      var deleteList = [];
-      listener.BeginContact = function(contact, oldManifold) {
-            var sunCollision = function(sun,body) {
-                // Non-ship objects burn up in the atmosphere
-                var et = body.entity && body.entity.entitytype;
-                if (et !== "SHIP") { deleteList.push(body);}
-            },
+    var listener = new b2Listener();
+  
+    var deleteList = [];
+    listener.BeginContact = function(contact, oldManifold) {
+        var sunCollision = function(sun,body) {
+            // Non-ship objects burn up in the atmosphere
+            var et = body.entity && body.entity.entitytype;
+            if (et !== "SHIP") { deleteList.push(body);}
+        },
 
-            shipCollision = function(ship,body) {
-                
-                function doCollision(ship,body) {
-                    // Perform the actual collision
-                    // Ship collisions hurt the ship, but only once in a while                                
-                    var timeout = 1000,
-                        t = new Date().getTime();
-                        
-                    if (body.lastContacts && body.lastContacts[ship]) {
-                        if (t - body.lastContacts[ship] < timeout) {
-                            return;
-                        }
-                    }
-                    console.debug("OUCH!");
-                
-                    if (body.lastContacts === undefined) {
-                        body.lastContacts = {};
-                    }
-                    body.lastContacts[ship] = t;                                
-                }
-                // hurt!
-                doCollision(ship,body);
-                
-                // If ship-to-ship, perform reverse collision too.
-                var et = body.entity && body.entity.entitytype;
-                if (et === "SHIP") {
-                    doCollision(body.entity, ship.body);
-                }
-            };
+        shipCollision = function(ship,body) {
             
+            function doCollision(ship,body) {
+                // Perform the actual collision
+                // Ship collisions hurt the ship, but only once in a while                                
+                var timeout = 1000,
+                    t = new Date().getTime();
+                    
+                if (body.lastContacts && body.lastContacts[ship]) {
+                    if (t - body.lastContacts[ship] < timeout) {
+                        return;
+                    }
+                }
+                console.debug("OUCH!");
             
-            var bodyA = contact.GetFixtureA().GetBody(),
-                bodyB = contact.GetFixtureB().GetBody(),
-                etA = bodyA.entity && bodyA.entity.entitytype,
-                etB = bodyB.entity && bodyB.entity.entitytype;           
-
-            if (etA === "SHIP") { shipCollision(bodyA.entity,bodyB);return; }
-            if (etB === "SHIP") { shipCollision(bodyB.entity,bodyA);return; } 
-
-            if (bodyA === sun.body) { sunCollision(sun,bodyB);return; }
-            if (bodyB === sun.body) { sunCollision(sun,bodyA);return; }
-                
+                if (body.lastContacts === undefined) {
+                    body.lastContacts = {};
+                }
+                body.lastContacts[ship] = t;                                
+            }
+            // hurt!
+            doCollision(ship,body);
+            
+            // If ship-to-ship, perform reverse collision too.
+            var et = body.entity && body.entity.entitytype;
+            if (et === "SHIP") {
+                doCollision(body.entity, ship.body);
+            }
         };
+        
+        
+        var bodyA = contact.GetFixtureA().GetBody(),
+            bodyB = contact.GetFixtureB().GetBody(),
+            etA = bodyA.entity && bodyA.entity.entitytype,
+            etB = bodyB.entity && bodyB.entity.entitytype;           
+
+        if (etA === "SHIP") { shipCollision(bodyA.entity,bodyB);return; }
+        if (etB === "SHIP") { shipCollision(bodyB.entity,bodyA);return; } 
+
+        if (bodyA === sun.body) { sunCollision(sun,bodyB);return; }
+        if (bodyB === sun.body) { sunCollision(sun,bodyA);return; }
+            
+    };
       
       function update() {
         var ctx = document.getElementById("canvas").getContext("2d");
@@ -118,11 +135,9 @@
                     ships[shipnr].body.ApplyForce(ships[shipnr].body.GetWorldVector(new b2Vec2(0,-10)),ships[shipnr].body.GetWorldCenter());
                 }
                 if (control[1] === "LEFT") {
-                    //ship.body.SetAngle(ship.body.GetAngle()-0.05);
                     ships[shipnr].body.ApplyTorque(-10);
                 }
                 if (control[1] === "RIGHT") {
-                    //ship.body.SetAngle(ship.body.GetAngle()+0.05);
                     ships[shipnr].body.ApplyTorque(10);
                 }
                 if (control[1] === "FIRE") {
