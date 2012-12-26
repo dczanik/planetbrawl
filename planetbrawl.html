@@ -130,21 +130,22 @@
             if (control) {
                 //console.log(control);
                 var shipnr = control[0];
+                var ship = ships[shipnr];
                 if (control[1] === "FWD") {
                     // Forward!
-                    ships[shipnr].body.ApplyForce(ships[shipnr].body.GetWorldVector(new b2Vec2(0,-10)),ships[shipnr].body.GetWorldCenter());
+                    ship.body.ApplyForce(ship.body.GetWorldVector(new b2Vec2(0,-10)),ship.body.GetWorldCenter());
                 }
                 if (control[1] === "LEFT") {
-                    ships[shipnr].body.ApplyTorque(-10);
+                    ship.body.ApplyTorque(-10);
                 }
                 if (control[1] === "RIGHT") {
-                    ships[shipnr].body.ApplyTorque(10);
+                    ship.body.ApplyTorque(10);
                 }
                 if (control[1] === "FIRE") {
                     var t = new Date().getTime();
-                    if ((t - ships[shipnr].mainweapon.lastfired) > ships[shipnr].mainweapon.cooldown) {
+                    if ((t - ship.mainweapon.lastfired) > ship.mainweapon.cooldown) {
                         console.debug("FIRE!!");
-                        ships[shipnr].mainweapon.lastfired = t;
+                        ship.mainweapon.lastfired = t;
                         // Create a bullet
                         var fixDef = new b2FixtureDef();
                         fixDef.density = 1.0;
@@ -153,14 +154,12 @@
 
                         var bodyDef = new b2BodyDef();       
                         bodyDef.type = b2Body.b2_dynamicBody;
-                        fixDef.shape = new b2CircleShape(ships[shipnr].mainweapon.bulletsize);            
-                        bodyDef.position.SetV(ships[shipnr].body.GetWorldPoint(new b2Vec2(0,-2)));                        
+                        fixDef.shape = new b2CircleShape(ship.mainweapon.bulletsize);            
+                        bodyDef.position.SetV(ship.body.GetWorldPoint(new b2Vec2(0,-2)));                        
                         var body = world.CreateBody(bodyDef);
                         body.CreateFixture(fixDef);         
-                        body.SetLinearVelocity(ships[shipnr].body.GetWorldVector(new b2Vec2(0,-20)));
+                        body.SetLinearVelocity(ship.body.GetWorldVector(new b2Vec2(0,-20)));
                         body.lastContacts = {};
-
-                        
                     }
                 }
             }
