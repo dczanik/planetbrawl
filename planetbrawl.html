@@ -37,6 +37,7 @@
     function Ship(mainweapon) {  
         this.entitytype = "SHIP";
         this.mainweapon = mainweapon;
+        this.mainweapon_lastfired = 0;
     }
     Ship.prototype = new Entity();
 
@@ -48,7 +49,7 @@
     Planet.prototype = new Entity();
 
     var sun = new Planet(new b2Vec2(15, 15),1000);
-    var defaultmainweapon = {cooldown:300,lastfired:0,bulletsize:0.2,bulletvelocity:10};      
+    var defaultmainweapon = {cooldown:300,bulletsize:0.2,bulletvelocity:10};      
     var ships = [new Ship(defaultmainweapon),new Ship(defaultmainweapon)];
        
     var controls = {};
@@ -143,9 +144,9 @@
                 }
                 if (control[1] === "FIRE") {
                     var t = new Date().getTime();
-                    if ((t - ship.mainweapon.lastfired) > ship.mainweapon.cooldown) {
+                    if ((t - ship.mainweapon_lastfired) > ship.mainweapon.cooldown) {
                         console.debug("FIRE!!");
-                        ship.mainweapon.lastfired = t;
+                        ship.mainweapon_lastfired = t;
                         // Create a bullet
                         var fixDef = new b2FixtureDef();
                         fixDef.density = 1.0;
