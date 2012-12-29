@@ -2,18 +2,20 @@
    <head>
       <title>Planet Brawl</title>
         <style type="text/css">
-        html, body {
-          width:  100%;
-          height: 100%;
-          margin: 0px;
-        }
+       body {
+				background:#fff;
+				padding:0;
+				margin:0;
+				font-weight: bold;
+				overflow:hidden;
+			}
         </style>
+   <script src="three.min.js"></script>
    <script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
    <script type="text/javascript">
         /*jslint bitwise: true, newcap: true, plusplus: true, vars: true, white: true, browser: true, devel: true */
     "use strict";
-    var world;
-      
+    var world;      
       
     var   b2Vec2 = Box2D.Common.Math.b2Vec2
         ,	b2BodyDef = Box2D.Dynamics.b2BodyDef
@@ -28,7 +30,11 @@
         ,   b2Listener = Box2D.Dynamics.b2ContactListener
         ;
 
+    var entities = {};
+
+    var nextEntityID = 1;
     function Entity() {
+        this.id = nextEntityID++;
         this.entitytype = null;
         this.body = null;
         return this;
@@ -58,6 +64,21 @@
         87:[0,"FWD"],65:[0,"LEFT"],68:[0,"RIGHT"],32:[0,"FIRE"],
         38:[1,"FWD"],37:[1,"LEFT"],39:[1,"RIGHT"],13:[1,"FIRE"]
     };
+
+
+    // THREE stuff
+            var container;
+
+			var camera, scene, renderer;
+
+			var mapC;
+
+			var group;
+			var time = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
       
     var listener = new b2Listener();
   
@@ -114,9 +135,9 @@
     };
       
       function update() {
-        var ctx = document.getElementById("canvas").getContext("2d");
+        var ctx = document.getElementById("b2debugcanvas").getContext("2d");
         ctx.canvas.width  = window.innerWidth;
-        ctx.canvas.height = window.innerHeight;
+        ctx.canvas.height = 200;//window.innerHeight;
         // Clean up delete List
         deleteList.map( function(body)
         {
@@ -193,9 +214,22 @@
             ,  10       //velocity iterations
             ,  10       //position iterations
          );
+
+         renderer.render( scene, camera );
          world.DrawDebugData();
          world.ClearForces();
       }
+      
+      
+      function onWindowResize() {
+
+				camera.aspect = window.innerWidth / (window.innerHeight-200);
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight-200 );
+
+			}
+      
       
       function init() {
         
@@ -209,6 +243,62 @@
             //onsole.log("UP: "+event.keyCode);
         });
 
+        // Create the renderer
+         container = document.getElementById("renderercontainer")
+        //document.body.appendChild( container );
+
+        camera = new THREE.PerspectiveCamera( 60, window.innerWidth / (window.innerHeight-200), 1, 2100 );
+        camera.position.x = 5;
+        camera.position.y = 5;
+        camera.position.z = 5;
+
+        scene = new THREE.Scene();
+        
+        // renderer
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setClearColorHex( 0x000000, 1 );
+        renderer.setSize( window.innerWidth, window.innerHeight-200 );
+
+        container.appendChild( renderer.domElement );
+        window.addEventListener( 'resize', onWindowResize, false );
+
+        // Add test content
+                var amount = 20;
+				var radius = 1;
+
+				var mapB = THREE.ImageUtils.loadTexture( "sprites/sprite0.png" );
+				mapC = THREE.ImageUtils.loadTexture( "sprites/sprite0.png" );
+
+				group = new THREE.Object3D();
+
+				var materialB = new THREE.SpriteMaterial( { map: mapB, useScreenCoordinates: false, color: 0xffffff, fog: true } );
+
+				for ( var a = 0; a < amount; a ++ ) {
+
+					var x = 10*Math.random();
+					var y = 10*Math.random();
+					var z = 0;//10*Math.random() - 5;
+
+                    var material;
+
+					material = materialB.clone();
+
+					var sprite = new THREE.Sprite( material );
+
+					sprite.position.set( x, y, z );
+					//sprite.position.normalize();
+					//sprite.position.multiplyScalar( radius );
+                                       
+					sprite.scale.set( 1, 1, 1.0 );
+
+					group.add( sprite );
+
+				}
+
+				scene.add( group );
+
+         // Create the physics world
          
          world = new b2World(
                new b2Vec2(0, 0)    //gravity
@@ -277,8 +367,8 @@
          
          //setup debug draw
          var debugDraw = new b2DebugDraw();
-			debugDraw.SetSprite(document.getElementById("canvas").getContext("2d"));
-			debugDraw.SetDrawScale(30.0);
+			debugDraw.SetSprite(document.getElementById("b2debugcanvas").getContext("2d"));
+			debugDraw.SetDrawScale(10.0);
 			debugDraw.SetFillAlpha(0.3);
 			debugDraw.SetLineThickness(1.0);
 			debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
@@ -292,7 +382,8 @@
    </script>
       </head>
 <body onload="init();">
-      <canvas id="canvas"></canvas>
+    <div id="renderercontainer"></div>
+      <canvas id="b2debugcanvas"></canvas>
    </body>
    
    
