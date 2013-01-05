@@ -342,6 +342,11 @@
         for (var entID in entities) {
             entities[entID].update();
         }
+    
+        // Move the camera
+        camera.position.x = (ships[0].sprite.position.x + ships[1].sprite.position.x)/2;
+        camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
+        camera.position.z = Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3);
 
          renderer.render( scene, camera );
          world.DrawDebugData();
