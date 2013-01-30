@@ -325,15 +325,18 @@ function update() {
     );
 
 
-    var p = new THREE.Projector();
+    var projectmatrix = new THREE.Matrix4();
+    var unprojectmatrix = new THREE.Matrix4();
+    projectmatrix.multiply(boundaryCamera.projectionMatrix, new THREE.Matrix4().getInverse(boundaryCamera.matrixWorld));
+    unprojectmatrix.multiply(boundaryCamera.matrixWorld, new THREE.Matrix4().getInverse(boundaryCamera.projectionMatrix));
+
+    //var p = new THREE.Projector();
     for (var entID in entities) {
         var entity = entities[entID];
         entity.update();
         // Adjust entities in screenspace
         var v = entity.sprite.position.clone();
-        p.projectVector(v, boundaryCamera);
-        // Ajdust screen space position
-        //console.log(ship.sprite.position.x+','+ship.sprite.position.y);
+        projectmatrix.multiplyVector3(v);
         //console.log(v.x+','+v.y);
         var moved = false;
         if (v.x<-1.0) { v.x = v.x+2.0; moved = true; }
@@ -341,7 +344,7 @@ function update() {
         if (v.x>1.0 && v.x<2.0) { v.x = v.x-2;moved = true; }
         if (v.y>1.0 && v.y<2.0) { v.y = v.y-2;moved = true; }
         if (moved) {
-            p.unprojectVector(v,boundaryCamera);
+            unprojectmatrix.multiplyVector3(v);
             entity.body.SetPosition (new b2Vec2(v.x, v.y) );
             // update gfx
             entity.update();
