@@ -185,7 +185,7 @@ var keyBindings = {
 // THREE stuff
 var container;
 
-var camera, scene, renderer;
+var camera, scene, renderer, boundaryCamera;
 
 var mapC;
 
@@ -324,8 +324,28 @@ function update() {
             ,  10       //position iterations
     );
 
+
+    var p = new THREE.Projector();
     for (var entID in entities) {
-        entities[entID].update();
+        var entity = entities[entID];
+        entity.update();
+        // Adjust entities in screenspace
+        var v = entity.sprite.position.clone();
+        p.projectVector(v, boundaryCamera);
+        // Ajdust screen space position
+        //console.log(ship.sprite.position.x+','+ship.sprite.position.y);
+        //console.log(v.x+','+v.y);
+        var moved = false;
+        if (v.x<-1.0) { v.x = v.x+2.0; moved = true; }
+        if (v.y<-1.0) { v.y = v.y+2.0;moved = true; }
+        if (v.x>1.0 && v.x<2.0) { v.x = v.x-2;moved = true; }
+        if (v.y>1.0 && v.y<2.0) { v.y = v.y-2;moved = true; }
+        if (moved) {
+            p.unprojectVector(v,boundaryCamera);
+            entity.body.SetPosition (new b2Vec2(v.x, v.y) );
+            // update gfx
+            entity.update();
+        }
     }
 
     // Move the camera
@@ -333,7 +353,9 @@ function update() {
     camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
     camera.position.z = Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3);
 
-    renderer.render( scene, camera );
+    //console.log(camera.position.x,camera.position.y,camera.position.z)
+
+    renderer.render( scene, boundaryCamera );
     world.DrawDebugData();
     world.ClearForces();
 }
@@ -369,6 +391,11 @@ function init() {
     camera.position.x = 5;
     camera.position.y = 5;
     camera.position.z = 7;
+
+    boundaryCamera = new THREE.PerspectiveCamera( 60, window.innerWidth / (window.innerHeight-200), 1, 2100 );
+    boundaryCamera.position.x = 0;
+    boundaryCamera.position.y = 0;
+    boundaryCamera.position.z = 25;
 
     scene = new THREE.Scene();
 
