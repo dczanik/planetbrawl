@@ -1,23 +1,23 @@
 <html>
-   <head>
-      <title>Planet Brawl</title>
-        <style type="text/css">
-       body {
-				background:#fff;
-				padding:0;
-				margin:0;
-				font-weight: bold;
-				overflow:hidden;
-			}
-        </style>
-   <script src="three.min.js"></script>
-   <script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
-   <script type="text/javascript">
-        /*jslint bitwise: true, newcap: true, plusplus: true, vars: true, white: true, browser: true, devel: true */
-    "use strict";
-    var world;      
-      
-    var   b2Vec2 = Box2D.Common.Math.b2Vec2
+<head>
+<title>Planet Brawl</title>
+<style type="text/css">
+    body {
+        background:#fff;
+        padding:0;
+        margin:0;
+        font-weight: bold;
+        overflow:hidden;
+    }
+</style>
+<script src="three.min.js"></script>
+<script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
+<script type="text/javascript">
+/*jslint bitwise: true, newcap: true, plusplus: true, vars: true, white: true, browser: true, devel: true */
+"use strict";
+var world;
+
+var   b2Vec2 = Box2D.Common.Math.b2Vec2
         ,	b2BodyDef = Box2D.Dynamics.b2BodyDef
         ,	b2Body = Box2D.Dynamics.b2Body
         ,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
@@ -26,435 +26,435 @@
         ,	b2MassData = Box2D.Collision.Shapes.b2MassData
         ,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
         ,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
-        ,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw   
+        ,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw
         ,   b2Listener = Box2D.Dynamics.b2ContactListener
         ;
 
-    var entities = {};
+var entities = {};
 
-    var nextEntityID = 1;
-    function Entity() {       
-        this.entitytype = null;
-        this.body = null;
-        this.sprite = null;
-        this.group = null;
-        this.world = null;
-        return this;
+var nextEntityID = 1;
+function Entity() {
+    this.entitytype = null;
+    this.body = null;
+    this.sprite = null;
+    this.group = null;
+    this.world = null;
+    return this;
+}
+Entity.prototype.register = function(world,group) {
+    this.id = nextEntityID++;
+    this.world = world;
+    this.group = group;
+    entities[this.id] = this;
+};
+Entity.prototype.update = function() {
+    // Transfer information from physics domain to rendering domain
+    var body = this.body;
+    var sprite = this.sprite;
+
+    if (body && sprite) {
+        var pos = body.GetWorldCenter();
+        sprite.position.x = pos.x;
+        sprite.position.y = pos.y;
+        sprite.rotation = body.GetAngle();
+        // Ignore Z
     }
-    Entity.prototype.register = function(world,group) {
-        this.id = nextEntityID++;
-        this.world = world;
-        this.group = group;
-        entities[this.id] = this;
-    };
-    Entity.prototype.update = function() {
-        // Transfer information from physics domain to rendering domain
-        var body = this.body;
-        var sprite = this.sprite;
-        
-        if (body && sprite) {
-            var pos = body.GetWorldCenter();
-            sprite.position.x = pos.x;
-            sprite.position.y = pos.y;
-            sprite.rotation = body.GetAngle();
-            // Ignore Z            
-        }        
-    };
-    Entity.prototype.deregister = function() {
-        // Transfer information from physics domain to rendering domain
-        var body = this.body;
-        var sprite = this.sprite;
-        
-        if (body) {
-            this.world.DestroyBody(body);
-        }
-        if (sprite) {
-            this.group.remove(sprite);
-        }
-    };
+};
+Entity.prototype.deregister = function() {
+    // Transfer information from physics domain to rendering domain
+    var body = this.body;
+    var sprite = this.sprite;
 
-    function Ship(world,pos,material,group,mainweapon) {  
-        this.entitytype = "SHIP";
-        this.mainweapon = mainweapon;
-        this.mainweapon_lastfired = 0;
-        var fixDef = new b2FixtureDef();
-        fixDef.density = 1.0;
-        fixDef.friction = 0.5;
-        fixDef.restitution = 0.2;
-         
-        var bodyDef = new b2BodyDef();                  
-        bodyDef.type = b2Body.b2_dynamicBody;
-        fixDef.shape = new b2CircleShape(
-                  0.5
-               );            
-        /*fixDef.shape = new b2PolygonShape();
-         fixDef.shape.SetAsBox(
-                     0.5 //half width
-                  ,  0.5 //half height
-               );*/
-        bodyDef.position.x = pos.x;
-        bodyDef.position.y = pos.y;
-        this.body = world.CreateBody(bodyDef);
-        this.body.CreateFixture(fixDef);
-        this.body.lastContacts = {};
-        this.body.entity = this;
-        this.sprite = new THREE.Sprite( material );
-        this.sprite.position.set( pos.x, pos.y, 0 );                               
-        this.sprite.scale.set( 1, 1, 1);
-        group.add(this.sprite);
-        this.register(world,group);
-        return this;
+    if (body) {
+        this.world.DestroyBody(body);
     }
-    Ship.prototype = new Entity();
-
-    function Planet(world,pos,mass,radius,material,group) {  
-        this.entitytype = "PLANET";
-        this.mass = mass;
-        this.pos = pos;
-
-        var fixDef = new b2FixtureDef();
-        fixDef.density = 1.0;
-        fixDef.friction = 0.5;
-        fixDef.restitution = 0.2;
-         
-        var bodyDef = new b2BodyDef();                  
-        
-        bodyDef.type = b2Body.b2_staticBody;
-        fixDef.shape = new b2CircleShape(
-                  radius
-               );            
-        bodyDef.position.x = pos.x;
-        bodyDef.position.y = pos.y;
-        this.body = world.CreateBody(bodyDef);
-        this.body.CreateFixture(fixDef);
-        this.body.lastContacts = {};
-        this.body.entity = this;
-        this.sprite = new THREE.Sprite( material );
-        this.sprite.position.set( pos.x, pos.y, 0 );                               
-        this.sprite.scale.set( radius*2, radius*2, 1);
-        group.add(this.sprite);
-                
-        this.register(world,group);
-        return this;
+    if (sprite) {
+        this.group.remove(sprite);
     }
-    Planet.prototype = new Entity();
-    
-    function Projectile(world,group,ship,weapon) {  
-        this.entitytype = "PROJECTILE";
+};
 
-        var fixDef = new b2FixtureDef();
-        fixDef.density = 1.0;
-        fixDef.friction = 0.5;
-        fixDef.restitution = 0.2;
-                  
-        var bodyDef = new b2BodyDef();       
-        bodyDef.type = b2Body.b2_dynamicBody;
-        fixDef.shape = new b2CircleShape(weapon.bulletsize);            
-        bodyDef.position.SetV(ship.body.GetWorldPoint(new b2Vec2(0.6,0)));                        
-        var body = world.CreateBody(bodyDef);
-        body.CreateFixture(fixDef);         
-        body.SetLinearVelocity(ship.body.GetWorldVector(new b2Vec2(weapon.bulletvelocity,0)));
-        body.lastContacts = {}; 
-        this.body = body;
+function Ship(world,pos,material,group,mainweapon) {
+    this.entitytype = "SHIP";
+    this.mainweapon = mainweapon;
+    this.mainweapon_lastfired = 0;
+    var fixDef = new b2FixtureDef();
+    fixDef.density = 1.0;
+    fixDef.friction = 0.5;
+    fixDef.restitution = 0.2;
 
-        this.body.entity = this;
-        this.sprite = new THREE.Sprite( weapon.material );
-        this.sprite.scale.set(weapon.bulletsize*2, weapon.bulletsize*2, 1);
-        group.add(this.sprite);
-        this.register(world,group);
-        return this;
-    }
-    Projectile.prototype = new Entity();
- 
-    var sun = null;//new Planet(new b2Vec2(5, 5),1000);
-    
-    var map_defaultmainweapon_projectile = THREE.ImageUtils.loadTexture( "sprites/ceres.png" );
-    var material_defaultmainweapon_projectile = new THREE.SpriteMaterial( { map: map_defaultmainweapon_projectile, useScreenCoordinates: false, color: 0xffffff, fog: true } );        
-    
-    var defaultmainweapon = {cooldown:300,bulletsize:0.1,bulletvelocity:15,material:material_defaultmainweapon_projectile};      
-    var ships = [];
-       
-    var controls = {};
-    var keyBindings = {
-        // [SHIPNR, CONTROL]
-        87:[0,"FWD"],65:[0,"LEFT"],68:[0,"RIGHT"],32:[0,"FIRE"],
-        38:[1,"FWD"],37:[1,"LEFT"],39:[1,"RIGHT"],13:[1,"FIRE"]
-    };
+    var bodyDef = new b2BodyDef();
+    bodyDef.type = b2Body.b2_dynamicBody;
+    fixDef.shape = new b2CircleShape(
+            0.5
+    );
+    /*fixDef.shape = new b2PolygonShape();
+     fixDef.shape.SetAsBox(
+     0.5 //half width
+     ,  0.5 //half height
+     );*/
+    bodyDef.position.x = pos.x;
+    bodyDef.position.y = pos.y;
+    this.body = world.CreateBody(bodyDef);
+    this.body.CreateFixture(fixDef);
+    this.body.lastContacts = {};
+    this.body.entity = this;
+    this.sprite = new THREE.Sprite( material );
+    this.sprite.position.set( pos.x, pos.y, 0 );
+    this.sprite.scale.set( 1, 1, 1);
+    group.add(this.sprite);
+    this.register(world,group);
+    return this;
+}
+Ship.prototype = new Entity();
+
+function Planet(world,pos,mass,radius,material,group) {
+    this.entitytype = "PLANET";
+    this.mass = mass;
+    this.pos = pos;
+
+    var fixDef = new b2FixtureDef();
+    fixDef.density = 1.0;
+    fixDef.friction = 0.5;
+    fixDef.restitution = 0.2;
+
+    var bodyDef = new b2BodyDef();
+
+    bodyDef.type = b2Body.b2_staticBody;
+    fixDef.shape = new b2CircleShape(
+            radius
+    );
+    bodyDef.position.x = pos.x;
+    bodyDef.position.y = pos.y;
+    this.body = world.CreateBody(bodyDef);
+    this.body.CreateFixture(fixDef);
+    this.body.lastContacts = {};
+    this.body.entity = this;
+    this.sprite = new THREE.Sprite( material );
+    this.sprite.position.set( pos.x, pos.y, 0 );
+    this.sprite.scale.set( radius*2, radius*2, 1);
+    group.add(this.sprite);
+
+    this.register(world,group);
+    return this;
+}
+Planet.prototype = new Entity();
+
+function Projectile(world,group,ship,weapon) {
+    this.entitytype = "PROJECTILE";
+
+    var fixDef = new b2FixtureDef();
+    fixDef.density = 1.0;
+    fixDef.friction = 0.5;
+    fixDef.restitution = 0.2;
+
+    var bodyDef = new b2BodyDef();
+    bodyDef.type = b2Body.b2_dynamicBody;
+    fixDef.shape = new b2CircleShape(weapon.bulletsize);
+    bodyDef.position.SetV(ship.body.GetWorldPoint(new b2Vec2(0.6,0)));
+    var body = world.CreateBody(bodyDef);
+    body.CreateFixture(fixDef);
+    body.SetLinearVelocity(ship.body.GetWorldVector(new b2Vec2(weapon.bulletvelocity,0)));
+    body.lastContacts = {};
+    this.body = body;
+
+    this.body.entity = this;
+    this.sprite = new THREE.Sprite( weapon.material );
+    this.sprite.scale.set(weapon.bulletsize*2, weapon.bulletsize*2, 1);
+    group.add(this.sprite);
+    this.register(world,group);
+    return this;
+}
+Projectile.prototype = new Entity();
+
+var sun = null;//new Planet(new b2Vec2(5, 5),1000);
+
+var map_defaultmainweapon_projectile = THREE.ImageUtils.loadTexture( "sprites/ceres.png" );
+var material_defaultmainweapon_projectile = new THREE.SpriteMaterial( { map: map_defaultmainweapon_projectile, useScreenCoordinates: false, color: 0xffffff, fog: true } );
+
+var defaultmainweapon = {cooldown:300,bulletsize:0.1,bulletvelocity:15,material:material_defaultmainweapon_projectile};
+var ships = [];
+
+var controls = {};
+var keyBindings = {
+    // [SHIPNR, CONTROL]
+    87:[0,"FWD"],65:[0,"LEFT"],68:[0,"RIGHT"],32:[0,"FIRE"],
+    38:[1,"FWD"],37:[1,"LEFT"],39:[1,"RIGHT"],13:[1,"FIRE"]
+};
 
 
-    // THREE stuff
-            var container;
+// THREE stuff
+var container;
 
-			var camera, scene, renderer;
+var camera, scene, renderer;
 
-			var mapC;
+var mapC;
 
-			var group;
-			var time = 0;
+var group;
+var time = 0;
 
-			var windowHalfX = window.innerWidth / 2;
-			var windowHalfY = window.innerHeight / 2;
+var windowHalfX = window.innerWidth / 2;
+var windowHalfY = window.innerHeight / 2;
 
-      
-    var listener = new b2Listener();
-  
-    var deleteList = [];
-    listener.BeginContact = function(contact, oldManifold) {
-        var sunCollision = function(sun,body) {
-            // Non-ship objects burn up in the atmosphere
-            var et = body.entity && body.entity.entitytype;
-            
-            if (et !== "SHIP") { 
-                if (body.entity) {
-                    deleteList.push(body.entity);
-                }
-            }
-        },
 
-        shipCollision = function(ship,body) {
-            
-            function doCollision(ship,body) {
-                // Perform the actual collision
-                // Ship collisions hurt the ship, but only once in a while                                
-                var timeout = 1000,
-                    t = new Date().getTime();
-                    
-                if (body.lastContacts && body.lastContacts[ship]) {
-                    if (t - body.lastContacts[ship] < timeout) {
-                        return;
+var listener = new b2Listener();
+
+var deleteList = [];
+listener.BeginContact = function(contact, oldManifold) {
+    var sunCollision = function(sun,body) {
+                // Non-ship objects burn up in the atmosphere
+                var et = body.entity && body.entity.entitytype;
+
+                if (et !== "SHIP") {
+                    if (body.entity) {
+                        deleteList.push(body.entity);
                     }
                 }
-                console.debug("OUCH!");
-            
-                if (body.lastContacts === undefined) {
-                    body.lastContacts = {};
+            },
+
+            shipCollision = function(ship,body) {
+
+                function doCollision(ship,body) {
+                    // Perform the actual collision
+                    // Ship collisions hurt the ship, but only once in a while
+                    var timeout = 1000,
+                            t = new Date().getTime();
+
+                    if (body.lastContacts && body.lastContacts[ship]) {
+                        if (t - body.lastContacts[ship] < timeout) {
+                            return;
+                        }
+                    }
+                    console.debug("OUCH!");
+
+                    if (body.lastContacts === undefined) {
+                        body.lastContacts = {};
+                    }
+                    body.lastContacts[ship] = t;
                 }
-                body.lastContacts[ship] = t;                                
-            }
-            // hurt!
-            doCollision(ship,body);
-            
-            // If ship-to-ship, perform reverse collision too.
-            var et = body.entity && body.entity.entitytype;
-            if (et === "SHIP") {
-                doCollision(body.entity, ship.body);
-            }
-        };
-        
-        
-        var bodyA = contact.GetFixtureA().GetBody(),
+                // hurt!
+                doCollision(ship,body);
+
+                // If ship-to-ship, perform reverse collision too.
+                var et = body.entity && body.entity.entitytype;
+                if (et === "SHIP") {
+                    doCollision(body.entity, ship.body);
+                }
+            };
+
+
+    var bodyA = contact.GetFixtureA().GetBody(),
             bodyB = contact.GetFixtureB().GetBody(),
             etA = bodyA.entity && bodyA.entity.entitytype,
-            etB = bodyB.entity && bodyB.entity.entitytype;           
+            etB = bodyB.entity && bodyB.entity.entitytype;
 
-        if (etA === "SHIP") { shipCollision(bodyA.entity,bodyB);return; }
-        if (etB === "SHIP") { shipCollision(bodyB.entity,bodyA);return; } 
+    if (etA === "SHIP") { shipCollision(bodyA.entity,bodyB);return; }
+    if (etB === "SHIP") { shipCollision(bodyB.entity,bodyA);return; }
 
-        if (bodyA === sun.body) { sunCollision(sun,bodyB);return; }
-        if (bodyB === sun.body) { sunCollision(sun,bodyA);return; }
-            
-    };
-      
-      function update() {
-        var ctx = document.getElementById("b2debugcanvas").getContext("2d");
-        ctx.canvas.width  = window.innerWidth;
-        ctx.canvas.height = 200;//window.innerHeight;
-        // Clean up delete List
-        deleteList.map( function(entity)
-        {
-            entity.deregister();
-        });
+    if (bodyA === sun.body) { sunCollision(sun,bodyB);return; }
+    if (bodyB === sun.body) { sunCollision(sun,bodyA);return; }
+
+};
+
+function update() {
+    var ctx = document.getElementById("b2debugcanvas").getContext("2d");
+    ctx.canvas.width  = window.innerWidth;
+    ctx.canvas.height = 200;//window.innerHeight;
+    // Clean up delete List
+    deleteList.map( function(entity)
+    {
+        entity.deregister();
+    });
 
 
-        // Check if any of the controls are activated
-        var keyCode;
-        for (keyCode in controls) {
-            var control = keyBindings[keyCode];
-            if (control) {
-                //console.log(control);
-                var shipnr = control[0];
-                var ship = ships[shipnr];
-                if (control[1] === "FWD") {
-                    // Forward!
-                    ship.body.ApplyForce(ship.body.GetWorldVector(new b2Vec2(4,0)),ship.body.GetWorldCenter());
-                }
-                if (control[1] === "LEFT") {
-                    ship.body.ApplyTorque(1);
-                }
-                if (control[1] === "RIGHT") {
-                    ship.body.ApplyTorque(-1);
-                }
-                if (control[1] === "FIRE") {
-                    var t = new Date().getTime();
-                    if ((t - ship.mainweapon_lastfired) > ship.mainweapon.cooldown) {
-                        console.debug("FIRE!!");
-                        ship.mainweapon_lastfired = t;
-                        // Create a bullet
-                        var bullet = new Projectile(world,group,ship,ship.mainweapon);                   
-                    }
+    // Check if any of the controls are activated
+    var keyCode;
+    for (keyCode in controls) {
+        var control = keyBindings[keyCode];
+        if (control) {
+            //console.log(control);
+            var shipnr = control[0];
+            var ship = ships[shipnr];
+            if (control[1] === "FWD") {
+                // Forward!
+                ship.body.ApplyForce(ship.body.GetWorldVector(new b2Vec2(4,0)),ship.body.GetWorldCenter());
+            }
+            if (control[1] === "LEFT") {
+                ship.body.ApplyTorque(1);
+            }
+            if (control[1] === "RIGHT") {
+                ship.body.ApplyTorque(-1);
+            }
+            if (control[1] === "FIRE") {
+                var t = new Date().getTime();
+                if ((t - ship.mainweapon_lastfired) > ship.mainweapon.cooldown) {
+                    console.debug("FIRE!!");
+                    ship.mainweapon_lastfired = t;
+                    // Create a bullet
+                    var bullet = new Projectile(world,group,ship,ship.mainweapon);
                 }
             }
         }
-        
-        // Dampen the angular velocity
-        ships[0].body.SetAngularVelocity(ships[0].body.GetAngularVelocity()*0.95);
-        ships[1].body.SetAngularVelocity(ships[1].body.GetAngularVelocity()*0.95);
+    }
 
-        // Do gravity
-        var b;
-        for (b = world.GetBodyList(); b; b = b.GetNext())
-        {            
-            //b.SetAwake(true);
-            var md = new b2MassData();
-            b.GetMassData( md );
-            var r = new b2Vec2();
-            r.SetV(sun.pos);
-            r.Subtract(b.GetWorldCenter());
-            var rabs = r.Length(); 
-            if (rabs>1.0) {      
-                var f = r.Copy();
-                f.Normalize();
-                f.Multiply(7.0*md.mass/rabs);
-                b.ApplyForce(f,b.GetWorldCenter());
-            }
+    // Dampen the angular velocity
+    ships[0].body.SetAngularVelocity(ships[0].body.GetAngularVelocity()*0.95);
+    ships[1].body.SetAngularVelocity(ships[1].body.GetAngularVelocity()*0.95);
+
+    // Do gravity
+    var b;
+    for (b = world.GetBodyList(); b; b = b.GetNext())
+    {
+        //b.SetAwake(true);
+        var md = new b2MassData();
+        b.GetMassData( md );
+        var r = new b2Vec2();
+        r.SetV(sun.pos);
+        r.Subtract(b.GetWorldCenter());
+        var rabs = r.Length();
+        if (rabs>1.0) {
+            var f = r.Copy();
+            f.Normalize();
+            f.Multiply(7.0*md.mass/rabs);
+            b.ApplyForce(f,b.GetWorldCenter());
         }
-         world.Step(
-               1 / 60   //frame-rate
+    }
+    world.Step(
+            1 / 60   //frame-rate
             ,  10       //velocity iterations
             ,  10       //position iterations
-         );
-        
-        for (var entID in entities) {
-            entities[entID].update();
-        }
-    
-        // Move the camera
-        camera.position.x = (ships[0].sprite.position.x + ships[1].sprite.position.x)/2;
-        camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
-        camera.position.z = Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3);
+    );
 
-         renderer.render( scene, camera );
-         world.DrawDebugData();
-         world.ClearForces();
-      }
-      
-      
-      function onWindowResize() {
+    for (var entID in entities) {
+        entities[entID].update();
+    }
 
-				camera.aspect = window.innerWidth / (window.innerHeight-200);
-				camera.updateProjectionMatrix();
+    // Move the camera
+    camera.position.x = (ships[0].sprite.position.x + ships[1].sprite.position.x)/2;
+    camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
+    camera.position.z = Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3);
 
-				renderer.setSize( window.innerWidth, window.innerHeight-200 );
-
-			}
-      
-      
-      function init() {
-        
-        document.addEventListener('keydown', function(event) {
-            controls[event.keyCode] = 1;
-            //console.log("DOWN: "+event.keyCode);
-        });
-        
-        document.addEventListener('keyup', function(event) {
-            delete controls[event.keyCode];
-            //onsole.log("UP: "+event.keyCode);
-        });
-
-        // Create the renderer
-         container = document.getElementById("renderercontainer")
-        //document.body.appendChild( container );
-
-        camera = new THREE.PerspectiveCamera( 60, window.innerWidth / (window.innerHeight-200), 1, 2100 );
-        camera.position.x = 5;
-        camera.position.y = 5;
-        camera.position.z = 7;
-
-        scene = new THREE.Scene();
-        
-        // renderer
-
-        renderer = new THREE.WebGLRenderer();
-        renderer.setClearColorHex( 0x000000, 1 );
-        renderer.setSize( window.innerWidth, window.innerHeight-200 );
-
-        container.appendChild( renderer.domElement );
-        window.addEventListener( 'resize', onWindowResize, false );
-
-        // Add test content
+    renderer.render( scene, camera );
+    world.DrawDebugData();
+    world.ClearForces();
+}
 
 
-        group = new THREE.Object3D();
+function onWindowResize() {
 
-        var map_ceres = THREE.ImageUtils.loadTexture( "sprites/ceres.png" );
-        var material_ceres = new THREE.SpriteMaterial( { map: map_ceres, useScreenCoordinates: false, color: 0xffffff, fog: true } );        
-        var map_ship = THREE.ImageUtils.loadTexture( "sprites/nightraiderfixed.png" );
-        var material_ship = new THREE.SpriteMaterial( { map: map_ship, useScreenCoordinates: false, color: 0xffffff, fog: true } );        
+    camera.aspect = window.innerWidth / (window.innerHeight-200);
+    camera.updateProjectionMatrix();
 
-        scene.add( group );
+    renderer.setSize( window.innerWidth, window.innerHeight-200 );
 
-         // Create the physics world
-         world = new b2World(
-               new b2Vec2(0, 0)    //gravity
+}
+
+
+function init() {
+
+    document.addEventListener('keydown', function(event) {
+        controls[event.keyCode] = 1;
+        //console.log("DOWN: "+event.keyCode);
+    });
+
+    document.addEventListener('keyup', function(event) {
+        delete controls[event.keyCode];
+        //onsole.log("UP: "+event.keyCode);
+    });
+
+    // Create the renderer
+    container = document.getElementById("renderercontainer")
+    //document.body.appendChild( container );
+
+    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / (window.innerHeight-200), 1, 2100 );
+    camera.position.x = 5;
+    camera.position.y = 5;
+    camera.position.z = 7;
+
+    scene = new THREE.Scene();
+
+    // renderer
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setClearColorHex( 0x000000, 1 );
+    renderer.setSize( window.innerWidth, window.innerHeight-200 );
+
+    container.appendChild( renderer.domElement );
+    window.addEventListener( 'resize', onWindowResize, false );
+
+    // Add test content
+
+
+    group = new THREE.Object3D();
+
+    var map_ceres = THREE.ImageUtils.loadTexture( "sprites/ceres.png" );
+    var material_ceres = new THREE.SpriteMaterial( { map: map_ceres, useScreenCoordinates: false, color: 0xffffff, fog: true } );
+    var map_ship = THREE.ImageUtils.loadTexture( "sprites/nightraiderfixed.png" );
+    var material_ship = new THREE.SpriteMaterial( { map: map_ship, useScreenCoordinates: false, color: 0xffffff, fog: true } );
+
+    scene.add( group );
+
+    // Create the physics world
+    world = new b2World(
+            new b2Vec2(0, 0)    //gravity
             ,  true                 //allow sleep
-         );
-         world.SetContactListener(listener);
-         
-         var fixDef = new b2FixtureDef();
-         fixDef.density = 1.0;
-         fixDef.friction = 0.5;
-         fixDef.restitution = 0.2;
-         
-         var bodyDef = new b2BodyDef();                  
-         
-         // Create the planet
-         sun = new Planet(world,new b2Vec2(7, 5),1000,1,material_ceres,group);
-         // Create the ships
-         ships.push(new Ship(world,new b2Vec2(2, 2),material_ship,group,defaultmainweapon));
-         ships.push(new Ship(world,new b2Vec2(5, 2),material_ship,group,defaultmainweapon));
-                  
-         //create some objects
-         /*bodyDef.type = b2Body.b2_dynamicBody;
-         for(i = 0; i < 10; ++i) {
-            if(Math.random() > 0.5) {
-               fixDef.shape = new b2PolygonShape();
-               fixDef.shape.SetAsBox(
-                     Math.random()/5 + 0.1 //half width
-                  ,  Math.random()/5 + 0.1 //half height
-               );
-            } else {
-               fixDef.shape = new b2CircleShape(
-                  Math.random()/5 + 0.1 //radius
-               );
-            }
-            bodyDef.position.x = Math.random() * 10;
-            bodyDef.position.y = Math.random() * 10;            
-            var body = world.CreateBody(bodyDef);
-            body.CreateFixture(fixDef);
-            body.SetLinearVelocity(new b2Vec2(Math.random()*4,Math.random()*4-2));
-            body.lastContacts={}; // used for collision damage
-         }*/
-         
-         //setup debug draw
-         var debugDraw = new b2DebugDraw();
-			debugDraw.SetSprite(document.getElementById("b2debugcanvas").getContext("2d"));
-			debugDraw.SetDrawScale(10.0);
-			debugDraw.SetFillAlpha(0.3);
-			debugDraw.SetLineThickness(1.0);
-			debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
-			world.SetDebugDraw(debugDraw);
-         
-         window.setInterval(update, 1000 / 60);
-      }
-      
-      
-   
-   </script>
-      </head>
+    );
+    world.SetContactListener(listener);
+
+    var fixDef = new b2FixtureDef();
+    fixDef.density = 1.0;
+    fixDef.friction = 0.5;
+    fixDef.restitution = 0.2;
+
+    var bodyDef = new b2BodyDef();
+
+    // Create the planet
+    sun = new Planet(world,new b2Vec2(7, 5),1000,1,material_ceres,group);
+    // Create the ships
+    ships.push(new Ship(world,new b2Vec2(2, 2),material_ship,group,defaultmainweapon));
+    ships.push(new Ship(world,new b2Vec2(5, 2),material_ship,group,defaultmainweapon));
+
+    //create some objects
+    /*bodyDef.type = b2Body.b2_dynamicBody;
+     for(i = 0; i < 10; ++i) {
+     if(Math.random() > 0.5) {
+     fixDef.shape = new b2PolygonShape();
+     fixDef.shape.SetAsBox(
+     Math.random()/5 + 0.1 //half width
+     ,  Math.random()/5 + 0.1 //half height
+     );
+     } else {
+     fixDef.shape = new b2CircleShape(
+     Math.random()/5 + 0.1 //radius
+     );
+     }
+     bodyDef.position.x = Math.random() * 10;
+     bodyDef.position.y = Math.random() * 10;
+     var body = world.CreateBody(bodyDef);
+     body.CreateFixture(fixDef);
+     body.SetLinearVelocity(new b2Vec2(Math.random()*4,Math.random()*4-2));
+     body.lastContacts={}; // used for collision damage
+     }*/
+
+    //setup debug draw
+    var debugDraw = new b2DebugDraw();
+    debugDraw.SetSprite(document.getElementById("b2debugcanvas").getContext("2d"));
+    debugDraw.SetDrawScale(10.0);
+    debugDraw.SetFillAlpha(0.3);
+    debugDraw.SetLineThickness(1.0);
+    debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+    world.SetDebugDraw(debugDraw);
+
+    window.setInterval(update, 1000 / 60);
+}
+
+
+
+</script>
+</head>
 <body onload="init();">
-    <div id="renderercontainer"></div>
-      <canvas id="b2debugcanvas"></canvas>
-   </body>
-   
-   
+<div id="renderercontainer"></div>
+<canvas id="b2debugcanvas"></canvas>
+</body>
+
+
 </html>
