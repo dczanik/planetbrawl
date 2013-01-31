@@ -354,7 +354,7 @@ function update() {
     // Move the camera
     camera.position.x = (ships[0].sprite.position.x + ships[1].sprite.position.x)/2;
     camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
-    camera.position.z = Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3);
+    camera.position.z = Math.min(Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3),25);
 
     //console.log(camera.position.x,camera.position.y,camera.position.z)
 
@@ -399,6 +399,7 @@ function init() {
     boundaryCamera.position.x = 0;
     boundaryCamera.position.y = 0;
     boundaryCamera.position.z = 25;
+    boundaryCamera.updateMatrixWorld();
 
     scene = new THREE.Scene();
 
