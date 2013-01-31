@@ -327,28 +327,58 @@ function update() {
 
     var projectmatrix = new THREE.Matrix4();
     var unprojectmatrix = new THREE.Matrix4();
-    projectmatrix.multiply(boundaryCamera.projectionMatrix, new THREE.Matrix4().getInverse(boundaryCamera.matrixWorld));
-    unprojectmatrix.multiply(boundaryCamera.matrixWorld, new THREE.Matrix4().getInverse(boundaryCamera.projectionMatrix));
+    projectmatrix.multiply(camera.projectionMatrix, new THREE.Matrix4().getInverse(camera.matrixWorld));
+    unprojectmatrix.multiply(camera.matrixWorld, new THREE.Matrix4().getInverse(camera.projectionMatrix));
+
+    var boundaryprojectmatrix = new THREE.Matrix4();
+    var boundaryunprojectmatrix = new THREE.Matrix4();
+    boundaryprojectmatrix.multiply(boundaryCamera.projectionMatrix, new THREE.Matrix4().getInverse(boundaryCamera.matrixWorld));
+    boundaryunprojectmatrix.multiply(boundaryCamera.matrixWorld, new THREE.Matrix4().getInverse(boundaryCamera.projectionMatrix));
 
     //var p = new THREE.Projector();
     for (var entID in entities) {
         var entity = entities[entID];
         entity.update();
         // Adjust entities in screenspace
-        var v = entity.sprite.position.clone();
-        projectmatrix.multiplyVector3(v);
-        //console.log(v.x+','+v.y);
-        var moved = false;
-        if (v.x<-1.0) { v.x = v.x+2.0; moved = true; }
-        if (v.y<-1.0) { v.y = v.y+2.0;moved = true; }
-        if (v.x>1.0 && v.x<2.0) { v.x = v.x-2;moved = true; }
-        if (v.y>1.0 && v.y<2.0) { v.y = v.y-2;moved = true; }
-        if (moved) {
-            unprojectmatrix.multiplyVector3(v);
-            entity.body.SetPosition (new b2Vec2(v.x, v.y) );
-            // update gfx
-            entity.update();
+
+        if (entity.entitytype === "SHIP") {
+            // Readjust only for left and bottom edges, so we move only a single ship.
+            // Move the ship almost two screens, so we end up at pretty much the
+            // same distance to the opposing ship, but on the other side
+            var v = entity.sprite.position.clone();
+            projectmatrix.multiplyVector3(v);
+            //console.log(v.x+','+v.y);
+            var moved = false;
+            if (v.x<-1.0) { v.x = v.x+3.9; moved = true; }
+            if (v.y<-1.0) { v.y = v.y+3.9;moved = true; }
+            if (moved) {
+                unprojectmatrix.multiplyVector3(v);
+                entity.body.SetPosition (new b2Vec2(v.x, v.y) );
+                // update gfx
+                entity.update();
+            }
         }
+        else {
+            // All other objects are wrapped at minimum zoom level regardless of camera
+            // Readjust only for left and bottom edges, so we move only a single ship.
+            // Move the ship almost two screens, so we end up at pretty much the
+            // same distance to the opposing ship, but on the other side
+            v = entity.sprite.position.clone();
+            boundaryprojectmatrix.multiplyVector3(v);
+            //console.log(v.x+','+v.y);
+            moved = false;
+            if (v.x<-1.0) { v.x = v.x+3.9; moved = true; }
+            if (v.y<-1.0) { v.y = v.y+3.9;moved = true; }
+            if (v.x>3.0) { v.x = v.x-3.9; moved = true; }
+            if (v.y>3.0) { v.y = v.y-3.9;moved = true; }
+            if (moved) {
+                boundaryunprojectmatrix.multiplyVector3(v);
+                entity.body.SetPosition (new b2Vec2(v.x, v.y) );
+                // update gfx
+                entity.update();
+            }
+        }
+
     }
 
     // Move the camera
@@ -356,9 +386,14 @@ function update() {
     camera.position.y = (ships[0].sprite.position.y + ships[1].sprite.position.y)/2;
     camera.position.z = Math.min(Math.max(ships[0].sprite.position.distanceTo(ships[1].sprite.position),3),25);
 
+    boundaryCamera.position.x = camera.position.x;
+    boundaryCamera.position.y = camera.position.y;
+    boundaryCamera.position.z = 25;
+    boundaryCamera.updateMatrixWorld();
+
     //console.log(camera.position.x,camera.position.y,camera.position.z)
 
-    renderer.render( scene, boundaryCamera );
+    renderer.render( scene, camera );
     world.DrawDebugData();
     world.ClearForces();
 }
