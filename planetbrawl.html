@@ -456,6 +456,8 @@ function init() {
     var material_ceres = new THREE.SpriteMaterial( { map: map_ceres, useScreenCoordinates: false, color: 0xffffff, fog: true } );
     var map_ship = THREE.ImageUtils.loadTexture( "sprites/nightraiderfixed.png" );
     var material_ship = new THREE.SpriteMaterial( { map: map_ship, useScreenCoordinates: false, color: 0xffffff, fog: true } );
+    var map_ship2 = THREE.ImageUtils.loadTexture( "sprites/warrior2_0.png" );
+    var material_ship2 = new THREE.SpriteMaterial( { map: map_ship2, useScreenCoordinates: false, color: 0xffffff, fog: true } );
 
     scene.add( group );
 
@@ -477,7 +479,7 @@ function init() {
     sun = new Planet(world,new b2Vec2(7, 5),1000,1,material_ceres,group);
     // Create the ships
     ships.push(new Ship(world,new b2Vec2(2, 2),material_ship,group,defaultmainweapon));
-    ships.push(new Ship(world,new b2Vec2(5, 2),material_ship,group,defaultmainweapon));
+    ships.push(new Ship(world,new b2Vec2(5, 2),material_ship2,group,defaultmainweapon));
 
     //create some objects
     /*bodyDef.type = b2Body.b2_dynamicBody;
